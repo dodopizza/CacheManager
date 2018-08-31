@@ -301,7 +301,7 @@ namespace CacheManager.Core
 
             foreach (var handle in _cacheHandles)
             {
-                var handleResult = false;
+                bool handleResult;
                 if (!string.IsNullOrWhiteSpace(region))
                 {
                     handleResult = await handle.RemoveAsync(key, region);
@@ -400,6 +400,51 @@ namespace CacheManager.Core
             if (result)
             {
                 handle.Stats.OnRemove(region);
+            }
+        }
+        
+        private async ValueTask EvictFromHandlesAboveAsync(string key, string region, int excludeIndex)
+        {
+            if (_logTrace)
+            {
+                Logger.LogTrace("Evict from handles above: {0} {1}: above handle {2}.", key, region, excludeIndex);
+            }
+
+            if (excludeIndex < 0 || excludeIndex >= _cacheHandles.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(excludeIndex));
+            }
+
+            for (var handleIndex = 0; handleIndex < _cacheHandles.Length; handleIndex++)
+            {
+                if (handleIndex < excludeIndex)
+                {
+                    await EvictFromHandleAsync(key, region, _cacheHandles[handleIndex]);
+                }
+            }
+        }
+        
+        private async ValueTask AddToHandlesBelowAsync(CacheItem<TCacheValue> item, int foundIndex)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            if (_logTrace)
+            {
+                Logger.LogTrace("Add [{0}] to handles below handle '{1}'.", item, foundIndex);
+            }
+
+            for (var handleIndex = 0; handleIndex < _cacheHandles.Length; handleIndex++)
+            {
+                if (handleIndex > foundIndex)
+                {
+                    if (await _cacheHandles[handleIndex].AddAsync(item))
+                    {
+                        _cacheHandles[handleIndex].Stats.OnAdd(item);
+                    }
+                }
             }
         }
         

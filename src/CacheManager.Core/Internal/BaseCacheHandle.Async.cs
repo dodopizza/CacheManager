@@ -8,6 +8,111 @@ namespace CacheManager.Core.Internal
 #if !NET40
     public abstract partial class BaseCacheHandle<TCacheValue>
     {
+        /// <summary>
+        /// Updates an existing key in the cache.
+        /// <para>
+        /// The cache manager will make sure the update will always happen on the most recent version.
+        /// </para>
+        /// <para>
+        /// If version conflicts occur, if for example multiple cache clients try to write the same
+        /// key, and during the update process, someone else changed the value for the key, the
+        /// cache manager will retry the operation.
+        /// </para>
+        /// <para>
+        /// The <paramref name="updateValue"/> function will get invoked on each retry with the most
+        /// recent value which is stored in cache.
+        /// </para>
+        /// </summary>
+        /// <param name="key">The key to update.</param>
+        /// <param name="updateValue">The function to perform the update.</param>
+        /// <param name="maxRetries">The number of tries.</param>
+        /// <returns>The update result which is interpreted by the cache manager.</returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// If <paramref name="key"/> or <paramref name="updateValue"/> is null.
+        /// </exception>
+        /// <remarks>
+        /// If the cache does not use a distributed cache system. Update is doing exactly the same
+        /// as Get plus Put.
+        /// </remarks>
+        public virtual async ValueTask<UpdateItemResult<TCacheValue>> UpdateAsync(string key, Func<TCacheValue, TCacheValue> updateValue, int maxRetries)
+        {
+            NotNull(updateValue, nameof(updateValue));
+            CheckDisposed();
+
+            var original = await GetCacheItemAsync(key);
+            if (original == null)
+            {
+                return UpdateItemResult.ForItemDidNotExist<TCacheValue>();
+            }
+
+            var newValue = updateValue(original.Value);
+
+            if (newValue == null)
+            {
+                return UpdateItemResult.ForFactoryReturnedNull<TCacheValue>();
+            }
+
+            var newItem = original.WithValue(newValue);
+            newItem.LastAccessedUtc = DateTime.UtcNow;
+            await PutAsync(newItem);
+            return UpdateItemResult.ForSuccess(newItem);
+        }
+
+        /// <summary>
+        /// Updates an existing key in the cache.
+        /// <para>
+        /// The cache manager will make sure the update will always happen on the most recent version.
+        /// </para>
+        /// <para>
+        /// If version conflicts occur, if for example multiple cache clients try to write the same
+        /// key, and during the update process, someone else changed the value for the key, the
+        /// cache manager will retry the operation.
+        /// </para>
+        /// <para>
+        /// The <paramref name="updateValue"/> function will get invoked on each retry with the most
+        /// recent value which is stored in cache.
+        /// </para>
+        /// </summary>
+        /// <param name="key">The key to update.</param>
+        /// <param name="region">The cache region.</param>
+        /// <param name="updateValue">The function to perform the update.</param>
+        /// <param name="maxRetries">The number of tries.</param>
+        /// <returns>The update result which is interpreted by the cache manager.</returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// If <paramref name="key"/>, <paramref name="region"/> or <paramref name="updateValue"/> is null.
+        /// </exception>
+        /// <remarks>
+        /// If the cache does not use a distributed cache system. Update is doing exactly the same
+        /// as Get plus Put.
+        /// </remarks>
+        public virtual async ValueTask<UpdateItemResult<TCacheValue>> UpdateAsync(string key, string region, Func<TCacheValue, TCacheValue> updateValue, int maxRetries)
+        {
+            NotNull(updateValue, nameof(updateValue));
+            CheckDisposed();
+
+            // TODO: fix lock for async
+            //lock (_updateLock)
+            {
+                var original = await GetCacheItemAsync(key, region);
+                if (original == null)
+                {
+                    return UpdateItemResult.ForItemDidNotExist<TCacheValue>();
+                }
+
+                var newValue = updateValue(original.Value);
+                if (newValue == null)
+                {
+                    return UpdateItemResult.ForFactoryReturnedNull<TCacheValue>();
+                }
+
+                var newItem = original.WithValue(newValue);
+
+                newItem.LastAccessedUtc = DateTime.UtcNow;
+                await PutAsync(newItem);
+                return UpdateItemResult.ForSuccess(newItem);
+            }
+        }
+        
         /// <inheritdoc />
         protected internal override ValueTask<bool> AddInternalAsync(CacheItem<TCacheValue> item)
         {
