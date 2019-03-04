@@ -83,6 +83,8 @@ $env:VersionSuffix="beta"
 $env:BuildNumber="$Branch-$Build"
 Write-Host "Setting version suffix to $env:VersionSuffix and build number to $env:BuildNumber"
 
+Write-Host "Cleanup artefacts"
+Remove-item -Path ./artefacts -Confirm:$False -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType directory -Path ./artefacts -Force
 Write-Host "Packaging artefacts to ./artefacts folder"
 
