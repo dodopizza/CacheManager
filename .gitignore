@@ -7,6 +7,7 @@
 *.sln.docstates
 *.lock.json
 
+.idea/
 /Documentation/_site
 /Documentation/api/*.yml
 /Documentation/api/*.manifest
