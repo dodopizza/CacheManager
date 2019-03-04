@@ -63,7 +63,7 @@ Function PublishPackages($folder)
         Else 
         {
             Write-Host "Package not exists, pushing to feed '$source'"
-            dotnet nuget push $_.FullName --source $source
+            dotnet nuget push $_.FullName --source $source --api-key $env:NUGET_PASSWORD
         }
     }
 }
