@@ -7,7 +7,6 @@
 *.sln.docstates
 *.lock.json
 
-.idea/
 /Documentation/_site
 /Documentation/api/*.yml
 /Documentation/api/*.manifest
@@ -177,3 +176,9 @@ $RECYCLE.BIN/
 
 # JetBrains Rider
 .idea/
+
+# artefacts location
+artefacts/
+
+# NuGet config
+NuGet.config
